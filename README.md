@@ -1,2 +1,2 @@
 # APClassroomAPI
-An api for AP Classroom
+A Python api for AP Classroom
