@@ -1,6 +1,7 @@
 import requests
 import random
 import re
+import errors
 from json import loads, dumps
 from urllib.parse import unquote
 
@@ -23,6 +24,7 @@ class APClassroom:
         '''Will return the bearer token, used to authenticate'''
 
     def login(self) -> str:
+
         self.__requestSession.get("https://myap.collegeboard.org/login")
         '''Get the first round of cookies'''
         self.clientId: str = self.__requestSession.head(
