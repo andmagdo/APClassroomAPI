@@ -1,7 +1,6 @@
 import requests
 import random
 import re
-import errors
 from json import loads, dumps
 from urllib.parse import unquote
 
@@ -20,14 +19,13 @@ class APClassroom:
         '''Login details'''
         self.__loginURL = "https://prod.idp.collegeboard.org/api/v1/authn"
         '''URL for logging in'''
-        self.__token: str = self.login()
+        self.__token: str = self.__login()
         '''Will return the bearer token, used to authenticate'''
 
-    def login(self) -> str:
-
+    def __login(self) -> str:
         self.__requestSession.get("https://myap.collegeboard.org/login")
         '''Get the first round of cookies'''
-        self.clientId: str = self.__requestSession.head(
+        self.__clientId: str = self.__requestSession.head(
             "https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fwww.collegeboard.org%2F&idp=ECL"
         ).headers["Location"].split("client_id=")[1].split("&")[0]
         '''Get the client ID, needed for the state token. State token is needed for the '''
@@ -36,7 +34,7 @@ class APClassroom:
 
         # https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id=0oa3koxakyZGbffcq5d7&response_type=code&scope=openid+email+profile&redirect_uri=https://account.collegeboard.org/login/exchangeToken&state=cbAppDurl&nonce=MTY0NjQxMjQzNTEzNg==
         self.__oktaData: dict = loads(unquote(self.__requestSession.get(
-            f'''https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id={self.clientId
+            f'''https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id={self.__clientId
             }&response_type=code&scope=openid+email+profile&redirect_uri=https://account.collegeboard.org/login/exchangeToken&state=cbAppDurl&nonce={nonce}'''
                 ).text.split("var oktaData = ")[1].split('};')[0] + '}}'
                     ).replace("\\x", "%").replace("function(){",'"function(){').replace(';}}',';}}"'))
@@ -53,8 +51,8 @@ class APClassroom:
                                      "stateToken": self.__statetoken})
         '''JSON payload for logging in'''
 
-        self.loginHeaders = dumps({"Accept": "application/json",
-                                   "Content-Type": "application/json"})
+        self.__loginHeaders = {"Accept": "application/json",
+                                   "Content-Type": "application/json"}
         '''Headers that may need to be played with'''
 
         self.__loginRequest = self.__requestSession.post(url=self.__loginURL,
@@ -63,5 +61,5 @@ class APClassroom:
         '''Login, keep the request for later'''
 
     def __getLoginNonce(self):
-        return self.__requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce").json()[
-            'nonce']
+        return self.__requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce"
+                                          ).json()['nonce']
