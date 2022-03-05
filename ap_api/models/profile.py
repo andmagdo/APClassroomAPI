@@ -3,7 +3,7 @@ class profile:
         self.requestSession = apClassroomUser.requestSession
         self.user = apClassroomUser
 
-    def getProfileInfo(self):
+    def getProfileInfo(self, verbose=False):
         '''Need jwtToken, get it from below, auth header looks like CBLogin 00000000-FFFF-0000-FFFF-000000000000'''
         '''https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}'''
 
@@ -25,7 +25,12 @@ class profile:
         '''When the password was last changed'''
         self.userId:          str = self.rawUserData['_embedded']['user']['id']
         '''Probably not useful, but might as well be included'''
+        if verbose:
+            self.getMoreInfo()
 
+    def getMoreInfo(self):
+        pass
         #self.__stepUpRedirect =
         #if self.__stepUpRedirect.status_code != 302:
         #    self.user.login()
+
