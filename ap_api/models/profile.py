@@ -1,11 +1,18 @@
+from requests import Response, session
+from json import dumps
+
+
 class profile:
     def __init__(self, apClassroomUser):
-        self.requestSession = apClassroomUser.requestSession
+        self.requestSession: session = apClassroomUser.requestSession
         self.user = apClassroomUser
+        self.getProfileInfo(False)
 
-    def getProfileInfo(self, verbose=False):
-        '''Need jwtToken, get it from below, auth header looks like CBLogin 00000000-FFFF-0000-FFFF-000000000000'''
-        '''https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}'''
+    def getProfileInfo(self, verbose=True):
+
+        '''Need jwtToken for the extra info, get it from below, auth header looks like CBLogin 00000000-FFFF-0000-FFFF-000000000000
+        https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}
+        After some testing, the nonce is irrelevant, required, but can be set to 0'''
 
         '''auth header is sent from here as a cookie (cb_login) https://account.collegeboard.org/login/exchangeToken?code={code}&state=cbAppDurl'''
 
@@ -29,8 +36,54 @@ class profile:
             self.getMoreInfo()
 
     def getMoreInfo(self):
-        pass
-        #self.__stepUpRedirect =
-        #if self.__stepUpRedirect.status_code != 302:
-        #    self.user.login()
+        self.__stepUpUrl:         str = self.rawUserData['_links']['next']['href']
+        self.__stepUp:       Response = self.requestSession.head(self.__stepUpUrl)
+        if self.__stepUp.status_code != 302:
+            self.user.updateLogin()
+            self.__stepUp:   Response = self.requestSession.head(self.__stepUpUrl)
 
+        self.__newUrl:            str = self.__stepUp.headers['Location']
+        self.__newUrlOut:    Response = self.requestSession.get(self.__newUrl)
+        self.__profileAuth:       str = self.requestSession.cookies.get_dict()['cb_login']
+        self.__catapult:         dict = self.requestSession.get('https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce=0',
+                                                    headers={'Authorization': 'CBLogin ' + self.__profileAuth}).json()
+
+        self.username:            str = self.__catapult['cbUserProfile']['sessionInfo']['identityKey']['userName']
+        '''Because the username (now no longer used) is an advanced feature'''
+        self.__jwtToken:          str = self.__catapult['cbJwtToken']
+
+        self.infoUrl:             str = 'https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/mycb-mfe-profile-api-user-lambda-prod/invocations'
+
+        self.__loginPayload = dumps({'eventData':{'jwtToken': self.__jwtToken, 'sessionId': self.__profileAuth},'eventType':'retrieve-student-profile-information'})
+        '''Yes, it uses authorization and ids interchangeably'''
+
+        self.__infoRequest:    Response = self.requestSession.post(self.infoUrl)
+        self.infoRequest :           dict = self.__infoRequest.json()
+        self.legalFirstName:          str = self.infoRequest['firstName']
+        self.middleInitial:           str = self.infoRequest['middleInitial']
+        self.genderCode:              str = self.infoRequest['genderCode']
+        self.genderText:              str = self.infoRequest['genderText']
+        self.graduationDate:          str = self.infoRequest['graduationDate']
+        self.graduationYear:          str = self.infoRequest['cohort']
+        self.schoolCode:              str = self.infoRequest['schoolCode']
+        self.schoolName:              str = self.infoRequest['schoolName']
+        self.schoolType:              str = self.infoRequest['schoolType']
+        self.addressLine1:            str = self.infoRequest['addressLine1']
+        self.addressLine2:            str = self.infoRequest['addressLine2']
+        self.addressLine3:            str = self.infoRequest['addressLine3']
+        self.state:                   str = self.infoRequest['state']
+        self.city:                    str = self.infoRequest['city']
+        self.zipCode:                 str = self.infoRequest['zipCode']
+        self.province:                str = self.infoRequest['province']
+        self.countryCode:             str = self.infoRequest['countryCode']
+        self.internationalPostalCode: str = self.infoRequest['internationalPostalCode']
+        self.addressType:             str = self.infoRequest['addressType']
+        self.phoneCountryCode:        str = self.infoRequest['phoneCountryCode']
+        self.phoneNdc:                str = self.infoRequest['phoneNdc']
+        self.phoneLocal:              str = self.infoRequest['phoneLocal']
+        self.phoneNumber:             str = self.phoneNdc + self.phoneLocal
+        self.textMessageAllowed:      str = self.infoRequest['textMessageAllowed']
+        self.internationalPhone:      str = self.infoRequest['internationalPhone']
+
+        self.rawUserData                 |= self.infoRequest
+        '''combine the dictionaries'''

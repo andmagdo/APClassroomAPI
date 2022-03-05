@@ -4,6 +4,7 @@ import re
 from json import loads, dumps
 from urllib.parse import unquote
 from .models.profile import profile
+from .errors import LoginException
 
 class APClassroom:
     def __init__(self, username: str, password: str):
@@ -17,18 +18,19 @@ class APClassroom:
         self.__username: str = username
         self.__password: str = password
         '''Login details'''
-        self.__loginURL = "https://prod.idp.collegeboard.org/api/v1/authn"
+        self.__loginUrl = "https://prod.idp.collegeboard.org/api/v1/authn"
         '''URL for logging in'''
-        self.token: str = self.login()
+        self.token: str = self.__login()
         '''Will return the bearer token, used to authenticate'''
 
-    def login(self) -> str:
+    def __login(self) -> str:
         self.requestSession.get("https://myap.collegeboard.org/login")
         '''Get the first round of cookies'''
         self.__clientId: str = self.requestSession.head(
             "https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fwww.collegeboard.org%2F&idp=ECL"
         ).headers["Location"].split("client_id=")[1].split("&")[0]
-        '''Get the client ID, needed for the state token. State token is needed for the '''
+        '''Get the client ID, needed for the state token. State token is needed for logging in'''
+
         nonce = self.__getLoginNonce()
         '''Get a nonce, needed for a link below'''
 
@@ -36,8 +38,9 @@ class APClassroom:
         self.__oktaData: dict = loads(unquote(self.requestSession.get(
             f'''https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id={self.__clientId
             }&response_type=code&scope=openid+email+profile&redirect_uri=https://account.collegeboard.org/login/exchangeToken&state=cbAppDurl&nonce={nonce}'''
-                ).text.split("var oktaData = ")[1].split('};')[0] + '}}'
-                    ).replace("\\x", "%").replace("function(){",'"function(){').replace(';}}',';}}"'))
+        ).text.split("var oktaData = ")[1].split('};')[0] + '}}'
+                                              ).replace("\\x", "%").replace("function(){", '"function(){').replace(
+            ';}}', ';}}"'))
         '''Saving all the okta data -- No clue if it will ever be useful, but better to keep it now then need it later'''
         '''{'redirectUri': 'https://prod.idp.collegeboard.org/oauth2/v1/authorize/redirect?okta_key=fuBwvtRlO-qzfIogLHJ1c_69DrPCRiJVkUTh236O0YE', 'isMobileSso': False, 'fromUri': '/oauth2/v1/authorize/redirect?okta_key=fuBwvtRlO-qzfIogLHJ1c_69DrPCRiJVkUTh236O0YE', 'isMobileClientLogin': False, 'requestContext': {'target': {'clientId': '0oa3koxakyZGbffcq5d7', 'name': 'oidc_client', 'links': {}, 'label': 'paLoginCloud - Default', 'type': {}}, 'authentication': {'request': {'scope': 'openid email profile', 'response_type': 'code', 'state': 'cbAppDurl', 'redirect_uri': 'https://account.collegeboard.org/login/exchangeToken', 'response_mode': 'query'}, 'protocol': {}, 'amr': [], 'client': {'name': 'paLoginCloud - Default', 'links': {}, 'id': '0oa3koxakyZGbffcq5d7'}, 'issuer': {'name': 'cb-custom-auth-server', 'id': 'aus3koy55cz6p83gt5d7', 'uri': 'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7'}}}, 'signIn': {'logoText': 'College Board logo', 'language': 'en', 'consent': {'cancel': "function(){window.location.href='https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken=004NxJtd5R-tYk_oRjf7VNGgxP3-0vfEMlWgep5Ddb';}}", 'i18n': {'en': {'mfa.challenge.password.placeholder': 'Password', 'help': 'Help', 'password.forgot.email.or.username.tooltip': 'Enter your email', 'needhelp': 'Need help signing in?', 'primaryauth.username.placeholder': 'Email Address', 'password.forgot.email.or.username.placeholder': 'Enter your email', 'account.unlock.email.or.username.tooltip': 'Enter your email', 'unlockaccount': 'Unlock account?', 'account.unlock.email.or.username.placeholder': 'Enter your email', 'primaryauth.password.placeholder': 'Password', 'primaryauth.title': 'Sign In', 'forgotpassword': 'Forgot password?'}}, 'relayState': '/oauth2/v1/authorize/redirect?okta_key=fuBwvtRlO-qzfIogLHJ1c_69DrPCRiJVkUTh236O0YE', 'features': {'emailRecovery': True, 'restrictRedirectToForeground': True, 'deviceFingerprinting': True, 'consent': True, 'useDeviceFingerprintForSecurityImage': True, 'customExpiredPassword': True, 'router': True, 'showPasswordToggleOnSignInPage': True, 'securityImage': False, 'autoPush': True, 'smsRecovery': True, 'idpDiscovery': True, 'selfServiceUnlock': True, 'webauthn': True, 'showPasswordRequirementsAsHtmlList': True, 'registration': False, 'rememberMe': True, 'callRecovery': False, 'multiOptionalFactorEnroll': True}, 'baseUrl': 'https://prod.idp.collegeboard.org', 'assets': {'baseUrl': 'https://ok12static.oktacdn.com/assets/js/sdk/okta-signin-widget/5.9.4'}, 'customButtons': [], 'idpDiscovery': {'requestContext': '/oauth2/v1/authorize/redirect?okta_key=fuBwvtRlO-qzfIogLHJ1c_69DrPCRiJVkUTh236O0YE'}, 'logo': 'https://ok12static.oktacdn.com/fs/bco/1/fs03ir6072jIeBspy5d7', 'stateToken': '004NxJtd5R-tYk_oRjf7VNGgxP3-0vfEMlWgep5Ddb', 'helpLinks': {'help': 'https://support.collegeboard.org/help-center/account-help', 'forgotPassword': '', 'unlock': '', 'custom': []}, 'piv': {}}, 'accountChooserDiscoveryUrl': 'https://login.okta.com/discovery/iframe.html'}}'''
 
@@ -52,15 +55,26 @@ class APClassroom:
         '''JSON payload for logging in'''
 
         self.__loginHeaders = {"Accept": "application/json",
-                                   "Content-Type": "application/json"}
-        '''Headers that may need to be played with'''
+                               "Content-Type": "application/json"}
 
-        self.loginRequest = self.requestSession.post(url=self.__loginURL,
+        self.loginRequest = self.requestSession.post(url=self.__loginUrl,
                                                      data=self.__loginPayload,
                                                      headers=self.__loginHeaders)
+
+        if self.loginRequest.status_code != 200:
+            self.__loginRequest = self.loginRequest.json()
+            if "E0000011" in self.__loginRequest["errorCode"]:
+                '''invalid token error. seems random. Best fix is to try again'''
+                self.__login()
+            else:
+                raise LoginException(f'Error code: {self.__loginRequest["errorCode"]}\n'
+                                    f'Error description: {self.__loginRequest["errorSummary"]}')
+
         '''Login, keep the request for later'''
 
 
+    def updateLogin(self):
+        self.__login()
 
     def __getLoginNonce(self):
         return self.requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce"
