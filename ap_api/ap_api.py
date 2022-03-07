@@ -1,5 +1,5 @@
 import requests
-from requests import Request
+from requests import Response
 from json import loads, dumps
 from urllib.parse import unquote
 from .models.profile import profile
@@ -23,12 +23,9 @@ class APClassroom:
         self.__login()
         '''Will make the cookies, used to authenticate'''
 
-    def __login(self) -> None:
-        self.requestSession.get("https://myap.collegeboard.org/login")
-        '''Get the first round of cookies'''
-        self.__clientId: str = self.requestSession.head(
-            "https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fwww.collegeboard.org%2F&idp=ECL"
-        ).headers["Location"].split("client_id=")[1].split("&")[0]
+    def __login(self, __firstUrl:str="https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fmy.collegeboard.org%2Fprofile%2Finformation%2F&idp=ECL") -> None:
+        self.__firstRequest: Response = self.requestSession.head(__firstUrl)
+        self.__clientId: str = self.__firstRequest.headers["Location"].split("client_id=")[1].split("&")[0]
         '''Get the client ID, needed for the state token. State token is needed for logging in'''
 
         nonce: str = self.__getLoginNonce()
@@ -39,26 +36,26 @@ class APClassroom:
                               f'&redirect_uri=https://account.collegeboard.org/login/exchangeToken' \
                               f'&state=cbAppDurl&nonce={nonce}'
 
-        self.__oktaRequest: Request = self.requestSession.get(self.__oktaUrl)
+        self.__oktaRequest: Response = self.requestSession.get(self.__oktaUrl)
 
-        self.__oktaData1: str = self.__oktaRequest.text.split("var oktaData = "
-                                                              )[1].split('};')[0] + '}}'.replace("\\x", "%")
+        self.__oktaData1: str = self.__oktaRequest.text.split("var oktaData = ")[1].split('};')[0] + '}}'
+
 
         self.__oktaData2: str = self.__oktaData1.replace("function(){", '"function(){').replace(';}}', ';}}"')
 
-        self.__oktaData3: str = unquote(self.__oktaData2)
+        self.__oktaData3: str = unquote(self.__oktaData2).replace("\\x", "%")
 
         self.__oktaData: dict = loads(self.__oktaData3)
         '''Saving all the okta data -- Unsure if it will ever be useful, but better to keep it now then need it later'''
 
-        self.__stateToken: str = self.__oktaData['signIn']['consent']["stateToken"]
+        self.stateToken: str = self.__oktaData['signIn']['consent']["stateToken"]
         '''get okta login state token from oktaData'''
 
         self.__loginPayload = dumps({"password": self.__password,
                                      "username": self.__username,
                                      "options": {"warnBeforePasswordExpired": 'false',
                                                  "multiOptionalFactorEnroll": 'false'},
-                                     "stateToken": self.__stateToken})
+                                     "stateToken": self.stateToken})
         '''JSON payload for logging in'''
 
         self.__loginHeaders = {"Accept": "application/json",
@@ -79,8 +76,10 @@ class APClassroom:
 
         '''Login, keep the request for later'''
 
-    def updateLogin(self) -> None:
-        self.__login()
+    def updateLogin(self, __firstUrl:str="https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fmy.collegeboard.org%2Fprofile%2Finformation%2F&idp=ECL") -> None:
+        self.__login(__firstUrl)
+
+
 
     def __getLoginNonce(self) -> str:
         return self.requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce"

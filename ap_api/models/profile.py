@@ -11,7 +11,7 @@ class profile:
         self.getProfileInfo(False)
 
     def getProfileInfo(self, verbose=True) -> None:
-
+        """Get information about the logged in profile, by default getting all the info."""
         '''Need jwtToken for the extra info, get it from below, auth header looks like
                                                                             CBLogin 00000000-FFFF-0000-FFFF-000000000000
         https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}
@@ -41,15 +41,29 @@ class profile:
             self.getMoreInfo()
 
     def getMoreInfo(self) -> None:
+        """Get info that requires connection"""
+
         self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
         self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
         if self.__stepUp.status_code != 302:
-            self.user.updateLogin()
+            self.user.updateLogin("https://account.collegeboard.org/login/login?idp=ECL&appId=400&DURL=https://my.collegeboard.org/profile/information")
+            self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
             self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
 
         self.__newUrl: str = self.__stepUp.headers['Location']
-        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl)
-        self.__profileAuth: str = self.requestSession.cookies.get_dict()['cb_login']
+
+        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False)
+
+        # TODO add cookies that are needed for the next request to session
+        self.requestSession.cookies.set("oktaStateToken", self.user.stateToken)
+
+        print(self.requestSession.cookies)
+
+
+        self.__profileAuth:str = self.__newUrlOut.cookies.get('cb_login')
+        # still nothin'
+
+
         self.__catapult: dict = self.requestSession.get(
             'https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce=0',
             headers={'Authorization': 'CBLogin ' + self.__profileAuth}).json()
