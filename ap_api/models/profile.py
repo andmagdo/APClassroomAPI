@@ -59,6 +59,24 @@ class profile:
 
         print(self.requestSession.cookies)
 
+        '''
+        [
+           
+            {
+              "name": "AMCV_5E1B123F5245B29B0A490D45@AdobeOrg",
+              "value": "-2121179033|MCIDTS|19059|MCMID|31171481412125916968948757701100007785|vVersion|5.3.0"
+            },
+           
+            
+            {
+            {
+              "name": "ak_bmsc",
+              "value": "F928B7360A9202DF663D48091D091585~000000000000000000000000000000~YAAQB8IcuExYMVd/AQAATaS6ZA/3olbkzpqR2SshxOpyUNFQjjtoZYqscqycezqBryt6BlFqtNXeYOIEgkv+pekI2GkYHFq1w5HLSh8v/QlTfeF/4tnqJwST+A5Sg1LwvCrQ23nrFbe0DZO5nVsl9vTKpgt5GA4ZhKEFeFRibQLalG8hKe2kjY3odqq0lEflZiMRRygX5YdWBL29ZUMQxNp/SbN6gIgAHLsbOQHz0VKKyTA7S3aUcu+Lq1hjZeo5Tnbyu5bSSBSsao/752xzn3cJaVmpfZUgw970ErqjGf+XlbADMUrPyyVYJByTO3AaJch1dnB+ssqaY4slK2g0beAfanGY6fXZ95LcvbKOBv9MOSU1paoHHe/YThyeBUP8iPUDdzVj"
+            },
+            
+          ],
+        '''
+
 
         self.__profileAuth:str = self.__newUrlOut.cookies.get('cb_login')
         # still nothin'

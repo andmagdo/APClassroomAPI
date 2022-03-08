@@ -24,6 +24,7 @@ class APClassroom:
         '''Will make the cookies, used to authenticate'''
 
     def __login(self, __firstUrl:str="https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fmy.collegeboard.org%2Fprofile%2Finformation%2F&idp=ECL") -> None:
+        self.requestSession.get("https://www.collegeboard.org")
         self.__firstRequest: Response = self.requestSession.head(__firstUrl)
         self.__clientId: str = self.__firstRequest.headers["Location"].split("client_id=")[1].split("&")[0]
         '''Get the client ID, needed for the state token. State token is needed for logging in'''
