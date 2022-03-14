@@ -79,6 +79,8 @@ class APClassroom:
 
     def updateLogin(self, __firstUrl:str="https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fmy.collegeboard.org%2Fprofile%2Finformation%2F&idp=ECL") -> None:
         self.__login(__firstUrl)
+        '''does this work?
+        https://cbaccount.collegeboard.org/iamweb/secure/smartUpdate?DURL=https://apclassroom.collegeboard.org/10/assessments/assignments'''
 
 
 

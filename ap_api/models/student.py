@@ -36,3 +36,7 @@ class Student:
             "params": [],
             "text": "{\"operationName\":\"getStudentEnrollments\",\"variables\":{\"code\":23},\"query\":\"query getStudentEnrollments($code: Int!) {\\n  getStudentEnrollments(educationPeriod: $code) {\\n    ...studentEnrollmentsFragment\\n    __typename\\n  }\\n}\\n\\nfragment studentEnrollmentsFragment on studentEnrollments {\\n  scoreSendData {\\n    diCode\\n    userPromptType\\n    __typename\\n  }\\n  courseEnrollments {\\n    ...enrollmentFragment\\n    __typename\\n  }\\n  __typename\\n}\\n\\nfragment enrollmentFragment on enrollment {\\n  orgName\\n  orgId\\n  courseName\\n  testCd\\n  sectionName\\n  sectionType\\n  teachers\\n  examIntent\\n  examStartTime\\n  examEndTime\\n  examWindow\\n  enrollmentId\\n  joinCode\\n  transferCode\\n  studentId\\n  studentOrTeacherCanChangeExamIntent\\n  registrationDeadline\\n  requiresUnlocking\\n  isPreAP\\n  isDigitalPortfolio\\n  isCapstone\\n  isStudioArt\\n  isDigitalExam\\n  address {\\n    city\\n    state\\n    country\\n    __typename\\n  }\\n  digitalApplicable\\n  accommodations\\n  appInstalled\\n  practiceStatus\\n  checkinStatus\\n  setupStatus\\n  examStatus\\n  makeupStatus\\n  isMakeupAvailable\\n  ...classroomFragment\\n  __typename\\n}\\n\\nfragment classroomFragment on enrollment {\\n  numResults\\n  numToComplete\\n  numToScore\\n  assignmentsLink\\n  resultsLink\\n  assignments {\\n    title\\n    startDate\\n    dueDate\\n    link\\n    __typename\\n  }\\n  __typename\\n}\\n\"}"
           }'''
+
+        '''
+        
+        '''
