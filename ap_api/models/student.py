@@ -1,21 +1,22 @@
-from requests import Response, session
+from requests import session
 import datetime
+
+
 class Student:
     """Base class. Not for use with teacher accounts"""
+
     def __init__(self, apClassroomUser):
         self.user = apClassroomUser
         self.requestSession: session = apClassroomUser.requestSession
 
         self.initVariables()
 
-
-
     def initVariables(self):
         pass
 
-    def getClasses(self):
+    def getClasses(self)  -> None:
         pass
-        date = datetime.datetime.utcnow().isoformat().split('.')[0].replace("-",'').replace(":","")+"Z"
+        date = datetime.datetime.utcnow().isoformat().split('.')[0].replace("-", '').replace(":", "") + "Z"
 
         finalRequestHeaders = {
             "x-amz-date": date
