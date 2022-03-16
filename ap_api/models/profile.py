@@ -46,7 +46,7 @@ class profile:
         self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
         self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
         if self.__stepUp.status_code != 302:
-            self.user.updateLogin("https://account.collegeboard.org/login/login?idp=ECL&appId=400&DURL=https://my.collegeboard.org/profile/information")
+            self.user.__updateLogin()
             self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
             self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
 
@@ -124,11 +124,12 @@ class profile:
         self.textMessageAllowed: str = self.infoRequest['textMessageAllowed']
         self.internationalPhone: str = self.infoRequest['internationalPhone']
 
-        self.rawUserData |= self.infoRequest
+        self.extraRawUserData = self.infoRequest
         '''combine the dictionaries'''
 
     def initializeVariables(self) -> None:
         """Init Variables so that errors do not occur"""
+        self.extraRawUserData: dict = {}
         self.rawUserData: dict = {}
         self.firstName: str = ''
         self.lastName: str = ''
