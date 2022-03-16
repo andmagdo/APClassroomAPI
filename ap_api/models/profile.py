@@ -27,7 +27,7 @@ class profile:
 
         '''We contacted authn as part of the login process, we can use that request for the info'''
 
-        self.rawUserData: dict = self.user.loginRequest.json()
+        self.rawUserData: dict = self.user.login['request'].json()
         self.firstName: str = self.rawUserData['_embedded']['user']['profile']['firstName']
         self.lastName: str = self.rawUserData['_embedded']['user']['profile']['lastName']
         self.email: str = self.rawUserData['_embedded']['user']['profile']['login']
@@ -55,7 +55,7 @@ class profile:
         self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False)
 
         # TODO add cookies that are needed for the next request to session
-        self.requestSession.cookies.set("oktaStateToken", self.user.stateToken)
+        self.requestSession.cookies.set("oktaStateToken", self.user.login['stateToken'])
 
         print(self.requestSession.cookies)
 

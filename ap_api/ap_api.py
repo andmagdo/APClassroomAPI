@@ -36,18 +36,12 @@ class APClassroom:
         return profile(self)
 
     def __initLoginDict(self) -> None:
-        """Initialize the login dictionary in order to ensure that KeyErrors do not result"""
-        self.login['user']: str
-        self.login['pass']: str
-        self.login['clientId']: str
-
         self.login['defaultHeaders']: dict = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US,en;q=0.9',
             'Cache-Control':'no - cache',
             'Connection': 'keep-alive',
-            'Host': 'account.collegeboard.org',
             'Pragma': 'no-cache',
             'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate',
