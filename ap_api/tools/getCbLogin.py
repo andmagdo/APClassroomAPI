@@ -2,30 +2,18 @@ from requests import Session, Response
 from .login import updateLogin
 from ..errors import LoginException
 
-def getCbLogin(self) -> None:
+
+def getCbLogin(self, maxTries: int = 2) -> None:
     session: Session = self.requestSession
-    self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
-    stepUp: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
-                                    allow_redirects=False)
-    if stepUp.status_code != 302:
-        updateLogin(self)
-        self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
-        stepUp: Response = self.requestSession.head(self.__stepUpUrl)
 
-    try:
-        self.login['tokenExchangeUrl']: str = stepUp.headers['Location']
-    except KeyError:
-        raise LoginException('KeyError while trying to recieve token exchange url. Check credentials and ensure '
-                             'that you are using correct URLs\n'
-                             'Traceback can be found above.')
+    stepUp(self, session, maxTries)
 
-    getCookies(session, self)
+    getCookies(session, self.login['defaultHeaders'])
+    '''Ensure that we have the needed cookies'''
 
-    #print(stepUp.headers['Location'])
-    #print(session.cookies.keys())
-    #print(stepUp.headers)
-
-
+    # print(stepUp.headers['Location'])
+    # print(session.cookies.keys())
+    # print(stepUp.headers)
 
     '''Also Need jwtToken. get it from below
     https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}
@@ -39,17 +27,41 @@ def getCbLogin(self) -> None:
 
     '''which comes from https://prod.idp.collegeboard.org/api/v1/authn'''
 
-def getCookies(session: Session, self) -> None:
+
+def stepUp(self, session, maxTries: int = 2) -> None:
+    tries: int = 0
+    self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
+    stepUp: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
+                                    allow_redirects=False)
+    tries += 1
+    while stepUp.status_code != 302:
+        updateLogin(self)
+        self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
+        stepUp: Response = self.requestSession.head(self.__stepUpUrl)
+        tries += 1
+        if tries > maxTries:
+            raise LoginException('Maximum number of attempts reached. Check credentials and ensure you are using '
+                                 'correct URLs')
+    try:
+        self.login['tokenExchangeUrl']: str = stepUp.headers['Location']
+    except KeyError:
+        raise LoginException('KeyError while trying to recieve token exchange url. Check credentials and ensure '
+                             'that you are using correct URLs\n'
+                             'Traceback can be found above.')
+
+
+def getCookies(session: Session, headers) -> None:
+    """Ensure we have the needed cookies"""
     cookieNames: list = session.cookies.keys()
     neededCookies: list = ['JSESSIONID', 'AMCV_5E1B123F5245B29B0A490D45@AdobeOrg', 'AWSELB', 'AWSELBCORS',
-                           '_abck','ak_bmsc', 'bm_sz']
+                           '_abck', 'ak_bmsc', 'bm_sz']
     for cookie in neededCookies:
         if cookie not in cookieNames:
-            getCookie(session, self, cookie)
+            getCookie(session, headers, cookie)
 
 
-def getCookie(session: Session, self, cookie: str) -> None:
-    #print(cookie)
+def getCookie(session: Session, headers, cookie: str) -> None:
+    # print(cookie)
     if cookie in ['AMCV_5E1B123F5245B29B0A490D45@AdobeOrg']:
         pass
         '''Set via js. I do not know if it is required, and don't know how to make it, used as a tracking cookie
@@ -61,7 +73,6 @@ def getCookie(session: Session, self, cookie: str) -> None:
         "flossyourscore.com", "springboardonline.com", "springboardonline.org", "powerfaids.org"]
         
         '''
-    if cookie in ['JSESSIONID','AWSELB','AWSELBCORS','_abck','ak_bmsc','bm_sz']:
+    if cookie in ['JSESSIONID', 'AWSELB', 'AWSELBCORS', '_abck', 'ak_bmsc', 'bm_sz']:
         session.get('https://account.collegeboard.org/login/login?DURL=https://apclassroom.collegeboard.org',
-                    headers=self.login['defaultHeaders'])
-
+                    headers=headers)
