@@ -46,7 +46,7 @@ class profile:
         self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
         self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
         if self.__stepUp.status_code != 302:
-            self.user.__updateLogin()
+            self.user.loginUpdate()
             self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
             self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
 
@@ -57,40 +57,22 @@ class profile:
         # TODO add cookies that are needed for the next request to session
         self.requestSession.cookies.set("oktaStateToken", self.user.login['stateToken'])
 
-        print(self.requestSession.cookies)
+        #print(self.requestSession.cookies)
 
-        '''
-        [
-           
-            {
-              "name": "AMCV_5E1B123F5245B29B0A490D45@AdobeOrg",
-              "value": "-2121179033|MCIDTS|19059|MCMID|31171481412125916968948757701100007785|vVersion|5.3.0"
-            },
-           
-            
-            {
-            {
-              "name": "ak_bmsc",
-              "value": "F928B7360A9202DF663D48091D091585~000000000000000000000000000000~YAAQB8IcuExYMVd/AQAATaS6ZA/3olbkzpqR2SshxOpyUNFQjjtoZYqscqycezqBryt6BlFqtNXeYOIEgkv+pekI2GkYHFq1w5HLSh8v/QlTfeF/4tnqJwST+A5Sg1LwvCrQ23nrFbe0DZO5nVsl9vTKpgt5GA4ZhKEFeFRibQLalG8hKe2kjY3odqq0lEflZiMRRygX5YdWBL29ZUMQxNp/SbN6gIgAHLsbOQHz0VKKyTA7S3aUcu+Lq1hjZeo5Tnbyu5bSSBSsao/752xzn3cJaVmpfZUgw970ErqjGf+XlbADMUrPyyVYJByTO3AaJch1dnB+ssqaY4slK2g0beAfanGY6fXZ95LcvbKOBv9MOSU1paoHHe/YThyeBUP8iPUDdzVj"
-            },
-            
-          ],
-        '''
-
-
-        self.__profileAuth:str = self.__newUrlOut.cookies.get('cb_login')
+        self.__profileAuth: str = self.__newUrlOut.cookies.get('cb_login')
         # still nothin'
 
-
         self.__catapult: dict = self.requestSession.get(
-            'https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce=0',
+            'https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains'
+            '=catapult&cacheNonce=0',
             headers={'Authorization': 'CBLogin ' + self.__profileAuth}).json()
 
         self.username: str = self.__catapult['cbUserProfile']['sessionInfo']['identityKey']['userName']
         '''Because the username (now no longer used) is an advanced feature'''
         self.__jwtToken: str = self.__catapult['cbJwtToken']
 
-        self.infoUrl: str = 'https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/mycb-mfe-profile-api-user-lambda-prod/invocations'
+        self.infoUrl: str = 'https://lambda.us-east-1.amazonaws.com/2015-03-31/functions/mycb-mfe-profile-api-user' \
+                            '-lambda-prod/invocations '
 
         self.__loginPayload: dict = dumps({'eventData': {'jwtToken': self.__jwtToken, 'sessionId': self.__profileAuth},
                                            'eventType': 'retrieve-student-profile-information'})
@@ -149,8 +131,6 @@ class profile:
         self.__jwtToken: str = ''
 
         self.infoUrl: str = ''
-
-        self.__loginPayload: dict = {}
 
         self.__infoRequest = None
         self.infoRequest: dict = {}

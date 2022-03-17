@@ -1,7 +1,8 @@
 import requests
 from .models.profile import profile
-from .tools.login import login, updateLogin
+from .tools import login, updateLogin
 from .errors import LoginException
+
 
 class APClassroom:
     def __init__(self, username: str, password: str) -> None:
@@ -19,17 +20,14 @@ class APClassroom:
         '''Login details'''
         self.login['url']: str = "https://prod.idp.collegeboard.org/api/v1/authn"
         '''URL for logging in'''
-        self.__login()
-        '''Will make the cookies, used to authenticate'''
-        self.__updatePayload: dict = None
-
-    def __login(self, __firstUrl: str = None) -> None:
         try:
-            login(self, __firstUrl)
-        except KeyError as e:
+            login(self)
+        except KeyError:
             raise LoginException(f"Key error in login \n")
+        '''Will make the cookies, used to authenticate'''
 
-    def __updateLogin(self, __firstUrl: str = None) -> None:
+
+    def loginUpdate(self, __firstUrl: str = None) -> None:
         updateLogin(self, __firstUrl)
 
     def getProfile(self) -> profile:
@@ -37,10 +35,11 @@ class APClassroom:
 
     def __initLoginDict(self) -> None:
         self.login['defaultHeaders']: dict = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,*/*;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,application/json,'
+                      '*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control':'no - cache',
+            'Cache-Control': 'no - cache',
             'Connection': 'keep-alive',
             'Pragma': 'no-cache',
             'Sec-Fetch-Dest': 'document',
@@ -48,5 +47,6 @@ class APClassroom:
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/83.0.4103.116 Safari/537.36 '
         }
