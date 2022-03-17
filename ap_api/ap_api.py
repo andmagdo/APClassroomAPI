@@ -39,7 +39,7 @@ class APClassroom:
                       '*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'no - cache',
+            'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
             'Pragma': 'no-cache',
             'Sec-Fetch-Dest': 'document',
@@ -48,5 +48,8 @@ class APClassroom:
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/83.0.4103.116 Safari/537.36 '
+                          'Chrome/99.0.4844.74 Safari/537.36',
+            "DNT": "1",
+            "Upgrade-Insecure-Requests": "1",
+
         }

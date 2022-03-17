@@ -4,6 +4,7 @@ from ..errors import LoginException
 
 
 def getCbLogin(self, maxTries: int = 2) -> None:
+    """Grabs the CbLogin token and adds it to the login dictionary"""
     session: Session = self.requestSession
 
     stepUp(self, session, maxTries)
@@ -14,6 +15,8 @@ def getCbLogin(self, maxTries: int = 2) -> None:
     # print(stepUp.headers['Location'])
     # print(session.cookies.keys())
     # print(stepUp.headers)
+
+    tokenExchange(self, session, self.login['defaultHeaders'])
 
     '''Also Need jwtToken. get it from below
     https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}
@@ -28,7 +31,8 @@ def getCbLogin(self, maxTries: int = 2) -> None:
     '''which comes from https://prod.idp.collegeboard.org/api/v1/authn'''
 
 
-def stepUp(self, session, maxTries: int = 2) -> None:
+def stepUp(self, session:Session, maxTries: int = 2) -> None:
+    """Connect to the stepup site in order to get the link that gets the CBlogin"""
     tries: int = 0
     self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
     stepUp: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
@@ -50,8 +54,10 @@ def stepUp(self, session, maxTries: int = 2) -> None:
                              'Traceback can be found above.')
 
 
-def getCookies(session: Session, headers) -> None:
-    """Ensure we have the needed cookies"""
+def getCookies(session: Session, headers:dict) -> None:
+    """Ensure we have the needed cookies
+
+    Doing this by accepting both the session object and the headers, because Collegeboard requires a user agent"""
     cookieNames: list = session.cookies.keys()
     neededCookies: list = ['JSESSIONID', 'AMCV_5E1B123F5245B29B0A490D45@AdobeOrg', 'AWSELB', 'AWSELBCORS',
                            '_abck', 'ak_bmsc', 'bm_sz']
@@ -60,7 +66,8 @@ def getCookies(session: Session, headers) -> None:
             getCookie(session, headers, cookie)
 
 
-def getCookie(session: Session, headers, cookie: str) -> None:
+def getCookie(session: Session, headers:dict, cookie: str) -> None:
+    """Check see what cookies are needed and remedy the issue"""
     # print(cookie)
     if cookie in ['AMCV_5E1B123F5245B29B0A490D45@AdobeOrg']:
         pass
@@ -76,3 +83,20 @@ def getCookie(session: Session, headers, cookie: str) -> None:
     if cookie in ['JSESSIONID', 'AWSELB', 'AWSELBCORS', '_abck', 'ak_bmsc', 'bm_sz']:
         session.get('https://account.collegeboard.org/login/login?DURL=https://apclassroom.collegeboard.org',
                     headers=headers)
+
+def tokenExchange(self, session:Session, headers:dict) -> None:
+    """Gets the CBlogin Headers"""
+    session.cookies.set('AMCV_5E1B123F5245B29B0A490D45@AdobeOrg',"-2121179033|MCIDTS|19067|MCMID|56759820167809519468062158045823210293|vVersion|5.3.0")
+
+    headers["Host"]="account.collegeboard.org"
+
+    self.login['tokenExchangeRequest']: Response = session.get(self.login['tokenExchangeUrl'],
+                                                                headers=headers,
+                                                                allow_redirects=False)
+
+    print(self.login['tokenExchangeRequest'].headers)
+
+    print(session.cookies.keys())
+
+    print(self.login['tokenExchangeRequest'].request.headers)
+
