@@ -1,2 +1,2 @@
-from .student import *
 from .profile import *
+from .student import *

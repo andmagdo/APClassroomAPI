@@ -1,5 +1,6 @@
-from requests import Response, session
 from json import dumps
+
+from requests import Response, session
 
 
 class profile:

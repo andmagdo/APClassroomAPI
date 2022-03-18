@@ -1,5 +1,6 @@
-from requests import session
 import datetime
+
+from requests import session
 
 
 class Student:

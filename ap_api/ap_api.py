@@ -1,7 +1,8 @@
 import requests
+
+from .errors import LoginException
 from .models.profile import profile
 from .tools import login, updateLogin
-from .errors import LoginException
 
 
 class APClassroom:
@@ -25,7 +26,6 @@ class APClassroom:
         except KeyError:
             raise LoginException(f"Key error in login \n")
         '''Will make the cookies, used to authenticate'''
-
 
     def loginUpdate(self, __firstUrl: str = None) -> None:
         updateLogin(self, __firstUrl)

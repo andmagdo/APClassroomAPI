@@ -1,6 +1,8 @@
-from requests import Response
 from json import loads, dumps, JSONDecodeError
 from urllib.parse import unquote
+
+from requests import Response
+
 from ..errors import LoginException, InvalidCredentials
 
 
