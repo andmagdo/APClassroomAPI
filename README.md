@@ -8,4 +8,4 @@ Note that many features will only work for student accounts, as I do not have a 
 I am using this as my AP CSP project. Although it allows collaberation, I would not like to try that, the attribution will be odd.
 
 
-## Currently NOT working -- CBLogin/JwtToken still needs to be grabbed
+## Currently NOT working (as intended) -- CBLogin/JwtToken still needs to be grabbed
