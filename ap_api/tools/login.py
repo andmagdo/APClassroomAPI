@@ -1,7 +1,7 @@
 from json import loads, dumps, JSONDecodeError
 from urllib.parse import unquote
 
-from requests import Response
+from requests import Session, Response
 
 from ..errors import LoginException, InvalidCredentials
 
@@ -21,10 +21,59 @@ def login(self, firstUrl: str = None) -> None:
     '''For fear of repeating myself, this returns a Response object, but also saves it'''
 
     '''Before finishing, check if there are issues'''
-
-    '''Error Handling'''
     errorCheck(self, firstUrl)
 
+    getCbLogin(self)
+
+def initCookies(self) -> None:
+    """Connect to the www.collegeboard.org website and get the cookies in the request session"""
+    self.requestSession.get("https://www.collegeboard.org", headers=self.login['defaultHeaders'])
+    '''Get initial cookies'''
+    return
+
+def getClientId(self, url) -> tuple[Response, str]:
+    """Get the client ID, needed for the state token. State token is needed for logging in
+
+    It does this by requesting a login page that redirects to a page which contains the client ID as a query parameter.
+    This ID is then saved in the login dictionary.
+
+    Args:
+        self (APClassroom): The main API object
+        url (str): The URL of the login page.
+
+    Returns:
+        tuple[Response, str]: The response object and the client ID
+    """
+    request = getFirstLoginPage(self, url)
+    self.login['clientId']: str = request.headers["Location"].split("client_id=")[1].split("&")[0]
+
+    return request, self.login['clientId']
+
+def getStateToken(self) -> str:
+    nonce: str = getLoginNonce(self)
+    '''Get a nonce, needed for a link below'''
+
+    self.login['oktaUrl']: str = f'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize' \
+                                 f'?client_id={self.login["clientId"]}&response_type=code&scope=openid+email+profile' \
+                                 f'&redirect_uri=https://account.collegeboard.org/login/exchangeToken' \
+                                 f'&state=cbAppDurl&nonce={nonce}'
+
+    self.login['oktaRequest']: Response = self.requestSession.get(self.login['oktaUrl'],
+                                                                  headers=self.login['defaultHeaders'])
+
+    data1: str = self.login['oktaRequest'].text.split("var oktaData = ")[1].split('};')[0] + '}}'
+
+    data2: str = data1.replace("function(){", '"function(){').replace(';}}', ';}}"')
+
+    data3: str = unquote(data2).replace("\\x", "%")
+
+    self.login['oktaData']: dict = loads(data3)
+    '''Saving all the okta data -- Unsure if it will ever be useful, but better to keep it now then need it later'''
+
+    self.login['stateToken']: str = self.login['oktaData']['signIn']['consent']["stateToken"]
+    '''get okta login state token from oktaData'''
+
+    return self.login['stateToken']
 
 def getLoginNonce(self) -> str:
     return self.requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce",
@@ -48,11 +97,7 @@ def updateLogin(self, __firstUrl: str = None) -> None:
     .collegeboard.org/10/assessments/assignments '''
 
 
-def initCookies(self) -> None:
-    """Connect to the www.collegeboard.org website and get the cookies in the request session"""
-    self.requestSession.get("https://www.collegeboard.org", headers=self.login['defaultHeaders'])
-    '''Get initial cookies'''
-    return
+
 
 
 def getFirstLoginPage(self, url) -> Response:
@@ -61,58 +106,11 @@ def getFirstLoginPage(self, url) -> Response:
         url = "https://account.collegeboard.org/login/login?appId=292&DURL=https%3A%2F%2Fmy.collegeboard.org" \
               "%2Fprofile%2Finformation%2F&idp=ECL"
 
-    self.login['firstRequest']: Response = self.requestSession.head(url, headers=self.login['defaultHeaders'])
-    if not self.login['firstRequest'].is_redirect:
+    self.login['loginPageRequest']: Response = self.requestSession.head(url, headers=self.login['defaultHeaders'])
+    if not self.login['loginPageRequest'].is_redirect:
         raise LoginException("The request for the client ID must be a redirect. It is not.")
 
-    return self.login['firstRequest']
-
-
-def getClientId(self, url) -> tuple[Response, str]:
-    """Get the client ID, needed for the state token. State token is needed for logging in
-
-    It does this by requesting a login page that redirects to a page which contains the client ID as a query parameter.
-    This ID is then saved in the login dictionary.
-
-    Args:
-        self (APClassroom): The main API object
-        url (str): The URL of the login page.
-
-    Returns:
-        tuple[Response, str]: The response object and the client ID
-    """
-    request = getFirstLoginPage(self, url)
-    self.login['clientId']: str = request.headers["Location"].split("client_id=")[1].split("&")[0]
-
-    return request, self.login['clientId']
-
-
-def getStateToken(self) -> str:
-    nonce: str = getLoginNonce(self)
-    '''Get a nonce, needed for a link below'''
-
-    self.login['oktaUrl']: str = f'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize' \
-                                 f'?client_id={self.login["clientId"]}&response_type=code&scope=openid+email+profile' \
-                                 f'&redirect_uri=https://account.collegeboard.org/login/exchangeToken' \
-                                 f'&state=cbAppDurl&nonce={nonce}'
-
-    self.login['oktaRequest']: Response = self.requestSession.get(self.login['oktaUrl'],
-                                                                  headers=self.login['defaultHeaders'])
-
-    self.login['oktaData1']: str = self.login['oktaRequest'].text.split("var oktaData = ")[1].split('};')[0] + '}}'
-
-    self.login['oktaData2']: str = self.login['oktaData1'].replace("function(){", '"function(){').replace(';}}', ';}}"')
-
-    self.login['oktaData3']: str = unquote(self.login['oktaData2']).replace("\\x", "%")
-
-    self.login['oktaData']: dict = loads(self.login['oktaData3'])
-    '''Saving all the okta data -- Unsure if it will ever be useful, but better to keep it now then need it later'''
-
-    self.login['stateToken']: str = self.login['oktaData']['signIn']['consent']["stateToken"]
-    '''get okta login state token from oktaData'''
-
-    return self.login['stateToken']
-
+    return self.login['loginPageRequest']
 
 def makeLoginRequest(self) -> Response:
     self.login['payload']: str = dumps({"password": self.login['pass'],
@@ -129,7 +127,6 @@ def makeLoginRequest(self) -> Response:
                                                      headers=headers)
 
     return Response
-
 
 def errorCheck(self, firstUrl) -> None:
     if self.login['request'].status_code != 200:
@@ -150,3 +147,113 @@ def errorCheck(self, firstUrl) -> None:
         else:
             raise LoginException(f'Error code: {self.__loginRequest["errorCode"]}\n'
                                  f'Error description: {self.__loginRequest["errorSummary"]}')
+
+
+def getCbLogin(self, maxTries: int = 2) -> None:
+    """Grabs the CbLogin token and adds it to the login dictionary"""
+    session: Session = self.requestSession
+
+    stepUp(self, session, maxTries)
+
+    getCookies(session, self.login['defaultHeaders'])
+    '''Ensure that we have the needed cookies'''
+
+    # print(stepUp.headers['Location'])
+    # print(session.cookies.keys())
+    # print(stepUp.headers)
+
+    tokenExchange(self, session, self.login['defaultHeaders'])
+
+    '''Also Need jwtToken. get it from below
+    https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains=catapult&cacheNonce={nonce}
+    After some testing, the nonce is irrelevant, required, but can be set to 0'''
+
+    '''auth header is sent from here as a cookie 
+    (cb_login) https://account.collegeboard.org/login/exchangeToken?code={code}&state=cbAppDurl'''
+
+    '''that site is redirected from here 
+    (302 Found) https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken={token}'''
+
+    '''which comes from https://prod.idp.collegeboard.org/api/v1/authn'''
+
+
+def stepUp(self, session: Session, maxTries: int = 1) -> None:
+    """Connect to the stepup site in order to get the link that gets the CBlogin"""
+    tries: int = 0
+    self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
+    stepUp: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
+                                    allow_redirects=False)
+    tries += 1
+    while stepUp.status_code != 302:
+        if tries >= maxTries:
+            raise LoginException('Maximum number of attempts reached. Check credentials and ensure you are using '
+                                 'correct URLs')
+        updateLogin(self)
+        self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
+        stepUp: Response = self.requestSession.head(self.__stepUpUrl)
+        tries += 1
+
+    try:
+        self.login['tokenExchangeUrl']: str = stepUp.headers['Location']
+    except KeyError:
+        raise LoginException('KeyError while trying to recieve token exchange url. Check credentials and ensure '
+                             'that you are using correct URLs\n'
+                             'Traceback can be found above.')
+
+
+def getCookies(session: Session, headers: dict) -> None:
+    """Ensure we have the needed cookies
+
+    Doing this by accepting both the session object and the headers, because Collegeboard requires a user agent"""
+    cookieNames: list = session.cookies.keys()
+    neededCookies: list = ['JSESSIONID', 'AMCV_5E1B123F5245B29B0A490D45@AdobeOrg', 'AWSELB', 'AWSELBCORS',
+                           '_abck', 'ak_bmsc', 'bm_sz']
+    for cookie in neededCookies:
+        if cookie not in cookieNames:
+            getCookie(session, headers, cookie)
+
+
+def getCookie(session: Session, headers: dict, cookie: str) -> None:
+    """Check see what cookies are needed and remedy the issue"""
+    # print(cookie)
+    if cookie in ['AMCV_5E1B123F5245B29B0A490D45@AdobeOrg']:
+        pass
+        '''Set via js. I do not know if it is required, and don't know how to make it, used as a tracking cookie
+        js at https://assets.adobedtm.com/f740f8a20d94/1dcfc2687ba3/launch-9227a8742d03.min.js, details below
+        https://experienceleague.adobe.com/docs/core-services/interface/administration/ec-cookies/cookies-mc.html
+        Supposedly (according to the above site) the name may change, but IDK if that even matters.
+        The JS says that it is always AMCV_5E1B123F5245B29B0A490D45@AdobeOrg for 
+        ["academicmerit.com", "acquia-sites.com", "apscore.org", "cbapis.org", "collegeboard.com", "collegeboard.org", 
+        "flossyourscore.com", "springboardonline.com", "springboardonline.org", "powerfaids.org"]
+
+        '''
+    if cookie in ['JSESSIONID', 'AWSELB', 'AWSELBCORS', '_abck', 'ak_bmsc', 'bm_sz']:
+        session.get('https://account.collegeboard.org/login/login?DURL=https://apclassroom.collegeboard.org',
+                    headers=headers)
+
+
+def tokenExchange(self, session: Session, headers: dict) -> None:
+    """Gets the CBlogin Headers"""
+    # session.cookies.set('AMCV_5E1B123F5245B29B0A490D45@AdobeOrg',"-2121179033|MCIDTS|19067|MCMID|56759820167809519468062158045823210293|vVersion|5.3.0")
+
+    headers["Host"] = "account.collegeboard.org"
+
+    # print(session.options(self.login['tokenExchangeUrl'],
+    #                 headers=headers).headers)
+
+    print('"' + self.login['tokenExchangeUrl'] + '"')
+
+    self.login['tokenExchangeRequest']: Response = session.get(self.login['tokenExchangeUrl'],
+                                                               headers=headers,
+                                                               allow_redirects=False)
+
+    if not self.login['tokenExchangeRequest'].is_redirect:
+        raise LoginException('Token exchange request did not return a redirect. Ensure that the URL is correct')
+
+    print(self.login['tokenExchangeRequest'].headers['Location'])
+
+    print(self.login['tokenExchangeRequest'].headers)
+
+    print(session.cookies.keys())
+
+    print(self.login['tokenExchangeRequest'].request.headers)
