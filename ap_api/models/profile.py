@@ -45,15 +45,15 @@ class profile:
         """Get info that requires connection"""
 
         self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
-        self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
+        self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl, headers=self.user.login['defaultHeaders'])
         if self.__stepUp.status_code != 302:
             self.user.loginUpdate()
             self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
-            self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl)
+            self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl, headers=self.user.login['defaultHeaders'])
 
         self.__newUrl: str = self.__stepUp.headers['Location']
 
-        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False)
+        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False, headers=self.user.login['defaultHeaders'])
 
         # TODO add cookies that are needed for the next request to session
         self.requestSession.cookies.set("oktaStateToken", self.user.login['stateToken'])
@@ -62,11 +62,12 @@ class profile:
 
         self.__profileAuth: str = self.__newUrlOut.cookies.get('cb_login')
         # still nothin'
-
+        headers = self.user.login['defaultHeaders']
+        headers['Authorization'] = 'CBLogin' + self.__profileAuth
         self.__catapult: dict = self.requestSession.get(
             'https://sucred.catapult-prod.collegeboard.org/rel/temp-user-aws-creds?cbEnv=pine&appId=366&cbAWSDomains'
             '=catapult&cacheNonce=0',
-            headers={'Authorization': 'CBLogin ' + self.__profileAuth}).json()
+            headers=headers).json()
 
         self.username: str = self.__catapult['cbUserProfile']['sessionInfo']['identityKey']['userName']
         '''Because the username (now no longer used) is an advanced feature'''
@@ -79,7 +80,7 @@ class profile:
                                            'eventType': 'retrieve-student-profile-information'})
         '''Yes, it uses authorization and ids interchangeably'''
 
-        self.__infoRequest: Response = self.requestSession.post(self.infoUrl)
+        self.__infoRequest: Response = self.requestSession.post(self.infoUrl, headers=self.user.login['defaultHeaders'])
         self.infoRequest: dict = self.__infoRequest.json()
         self.legalFirstName: str = self.infoRequest['firstName']
         self.middleInitial: str = self.infoRequest['middleInitial']

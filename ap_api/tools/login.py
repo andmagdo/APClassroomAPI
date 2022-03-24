@@ -9,6 +9,9 @@ from ..errors import LoginException, InvalidCredentials
 def login(self, firstUrl: str = None) -> None:
     """Normal function to log in to collegeboard"""
 
+    # to get Bearer token, https://am-accounts-production.collegeboard.org/account/api/
+    # with json of {"namespace":"st","sessionId":"{CBLOGIN}","username":"{USERNAME} "}
+
     initCookies(self)
 
     getClientId(self, firstUrl)
@@ -190,7 +193,7 @@ def stepUp(self, session: Session, maxTries: int = 1) -> None:
                                  'correct URLs')
         updateLogin(self)
         self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
-        stepUp: Response = self.requestSession.head(self.__stepUpUrl)
+        stepUp: Response = self.requestSession.head(self.__stepUpUrl, headers=self.login['defaultHeaders'])
         tries += 1
 
     try:
@@ -222,10 +225,6 @@ def getCookie(session: Session, headers: dict, cookie: str) -> None:
         js at https://assets.adobedtm.com/f740f8a20d94/1dcfc2687ba3/launch-9227a8742d03.min.js, details below
         https://experienceleague.adobe.com/docs/core-services/interface/administration/ec-cookies/cookies-mc.html
         Supposedly (according to the above site) the name may change, but IDK if that even matters.
-        The JS says that it is always AMCV_5E1B123F5245B29B0A490D45@AdobeOrg for 
-        ["academicmerit.com", "acquia-sites.com", "apscore.org", "cbapis.org", "collegeboard.com", "collegeboard.org", 
-        "flossyourscore.com", "springboardonline.com", "springboardonline.org", "powerfaids.org"]
-
         '''
     if cookie in ['JSESSIONID', 'AWSELB', 'AWSELBCORS', '_abck', 'ak_bmsc', 'bm_sz']:
         session.get('https://account.collegeboard.org/login/login?DURL=https://apclassroom.collegeboard.org',
@@ -241,9 +240,11 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
     # print(session.options(self.login['tokenExchangeUrl'],
     #                 headers=headers).headers)
 
+    # tryThis(self, session, headers, self.login['tokenExchangeUrl'])
+
     print('"' + self.login['tokenExchangeUrl'] + '"')
 
-    self.login['tokenExchangeRequest']: Response = session.get(self.login['tokenExchangeUrl'],
+    self.login['tokenExchangeRequest']: Response = session.head(self.login['tokenExchangeUrl'],
                                                                headers=headers,
                                                                allow_redirects=False)
 
@@ -257,3 +258,10 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
     print(session.cookies.keys())
 
     print(self.login['tokenExchangeRequest'].request.headers)
+
+# def tryThis(self, session: Session, headers:dict, url:str):
+#     'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id=0oa3koxakyZGbffcq5d7&response_type=code&scope=openid+email+profile&redirect_uri=https://account.collegeboard.org/login/exchangeToken&state=cbAppDurl&nonce=MTY0Nzk2MjMzMjc1Nw=='
+#     tryUrl: str = f'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id=' \
+#                   f'{self.login["clientId"]}&response_type=code&scope=openid+email+profile&redirect_uri=' \
+#                   f'{url}&nonce=0'
+#     print(session.get(tryUrl, headers=headers))
