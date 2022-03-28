@@ -20,6 +20,9 @@ def login(self, firstUrl: str = None) -> None:
     getStateToken(self)
     '''This does return a string with the info, but also already saves the information to the main login dictionary'''
 
+    introspect(self)
+    '''I do not know if this is required, but it could be, so I think it should be here'''
+
     makeLoginRequest(self)
     '''For fear of repeating myself, this returns a Response object, but also saves it'''
 
@@ -33,6 +36,19 @@ def initCookies(self) -> None:
     """Connect to the www.collegeboard.org website and get the cookies in the request session"""
     self.requestSession.get("https://www.collegeboard.org", headers=self.login['defaultHeaders'])
     '''Get initial cookies'''
+
+    return
+
+
+def introspect(self) -> None:
+    session = self.requestSession
+
+    headers = self.login['defaultHeaders']
+    headers["Content-Type"] = "application/json"
+    headers["p3p"] = "CP=\"HONK\""
+    session.post('https://prod.idp.collegeboard.org/api/v1/authn/introspect',
+                        headers=headers,
+                        data=dumps({"stateToken": self.login['stateToken']}))
     return
 
 
@@ -297,7 +313,7 @@ it is sent as a cookie when this site is a redirect
 
 Get that redirect url from another redirect url
 https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken={stateToken}
-    
+
     This uses the following cookies:
               "name": "_abck",
               "name": "ak_bmsc",
@@ -309,5 +325,10 @@ https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken={stateToken}
               "name": "bm_sv",
 
 We get that link from the authn link used to initially log in
+
+Try going to this one before that
+
+https://prod.idp.collegeboard.org/api/v1/authn/introspect
+
 
 '''
