@@ -28,11 +28,13 @@ def login(self, firstUrl: str = None) -> None:
 
     getCbLogin(self)
 
+
 def initCookies(self) -> None:
     """Connect to the www.collegeboard.org website and get the cookies in the request session"""
     self.requestSession.get("https://www.collegeboard.org", headers=self.login['defaultHeaders'])
     '''Get initial cookies'''
     return
+
 
 def getClientId(self, url) -> tuple[Response, str]:
     """Get the client ID, needed for the state token. State token is needed for logging in
@@ -51,6 +53,7 @@ def getClientId(self, url) -> tuple[Response, str]:
     self.login['clientId']: str = request.headers["Location"].split("client_id=")[1].split("&")[0]
 
     return request, self.login['clientId']
+
 
 def getStateToken(self) -> str:
     nonce: str = getLoginNonce(self)
@@ -78,6 +81,7 @@ def getStateToken(self) -> str:
 
     return self.login['stateToken']
 
+
 def getLoginNonce(self) -> str:
     return self.requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce",
                                     headers=self.login['defaultHeaders']).json()['nonce']
@@ -100,9 +104,6 @@ def updateLogin(self, __firstUrl: str = None) -> None:
     .collegeboard.org/10/assessments/assignments '''
 
 
-
-
-
 def getFirstLoginPage(self, url) -> Response:
     """Connect to an accounts page"""
     if not url:
@@ -114,6 +115,7 @@ def getFirstLoginPage(self, url) -> Response:
         raise LoginException("The request for the client ID must be a redirect. It is not.")
 
     return self.login['loginPageRequest']
+
 
 def makeLoginRequest(self) -> Response:
     self.login['payload']: str = dumps({"password": self.login['pass'],
@@ -130,6 +132,7 @@ def makeLoginRequest(self) -> Response:
                                                      headers=headers)
 
     return Response
+
 
 def errorCheck(self, firstUrl) -> None:
     if self.login['request'].status_code != 200:
@@ -181,6 +184,17 @@ def getCbLogin(self, maxTries: int = 2) -> None:
 
 
 def stepUp(self, session: Session, maxTries: int = 1) -> None:
+    """Contact the stepUp part of the login process
+
+    Args:
+        self: Pass the APClassroom object
+        session (Session): The session to use for the request
+        maxTries (int, optional): The maximum number of times to try the request. Defaults to 1.
+    """
+
+    '''Set this cookie, normally set via js, I am unsure if it is needed'''
+    session.cookies.set('oktaStateToken', self.login['stateToken'])
+
     """Connect to the stepup site in order to get the link that gets the CBlogin"""
     tries: int = 0
     self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
@@ -245,10 +259,12 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
     print('"' + self.login['tokenExchangeUrl'] + '"')
 
     self.login['tokenExchangeRequest']: Response = session.head(self.login['tokenExchangeUrl'],
-                                                               headers=headers,
-                                                               allow_redirects=False)
+                                                                headers=headers,
+                                                                allow_redirects=False)
 
     if not self.login['tokenExchangeRequest'].is_redirect:
+        print(session.cookies.keys())
+        print(self.login['tokenExchangeRequest'].headers)
         raise LoginException('Token exchange request did not return a redirect. Ensure that the URL is correct')
 
     print(self.login['tokenExchangeRequest'].headers['Location'])
@@ -259,9 +275,39 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
 
     print(self.login['tokenExchangeRequest'].request.headers)
 
+
 # def tryThis(self, session: Session, headers:dict, url:str):
 #     'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id=0oa3koxakyZGbffcq5d7&response_type=code&scope=openid+email+profile&redirect_uri=https://account.collegeboard.org/login/exchangeToken&state=cbAppDurl&nonce=MTY0Nzk2MjMzMjc1Nw=='
 #     tryUrl: str = f'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7/v1/authorize?client_id=' \
 #                   f'{self.login["clientId"]}&response_type=code&scope=openid+email+profile&redirect_uri=' \
 #                   f'{url}&nonce=0'
 #     print(session.get(tryUrl, headers=headers))
+
+
+'''
+Login process:
+
+We need the Bearer authentication token, which is a JWT token.
+
+We can get this via https://am-accounts-production.collegeboard.org/account/api/
+with the json {"namespace":"st","sessionId":"{CB_Login token}","username":"{username all caps}"}
+
+Get the CB_Login token by going to https://account.collegeboard.org/login/exchangeToken?code={random}&state=cbAppDurl
+it is sent as a cookie when this site is a redirect
+
+Get that redirect url from another redirect url
+https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken={stateToken}
+    
+    This uses the following cookies:
+              "name": "_abck",
+              "name": "ak_bmsc",
+              "name": "bm_sz",
+              "name": "JSESSIONID",
+              "name": "t",
+              "name": "DT",
+              "name": "oktaStateToken",
+              "name": "bm_sv",
+
+We get that link from the authn link used to initially log in
+
+'''
