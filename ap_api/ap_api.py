@@ -21,6 +21,7 @@ class APClassroom:
         '''Login details'''
         self.login['url']: str = "https://prod.idp.collegeboard.org/api/v1/authn"
         '''URL for logging in'''
+        self.login['nonce'] = None
         try:
             login(self)
         except KeyError:

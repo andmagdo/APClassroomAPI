@@ -23,12 +23,18 @@ def login(self, firstUrl: str = None) -> None:
     introspect(self)
     '''I do not know if this is required, but it could be, so I think it should be here'''
 
+    finishLogin(self, firstUrl)
+
+
+def finishLogin(self, firstUrl: str = None) -> None:
     makeLoginRequest(self)
     '''For fear of repeating myself, this returns a Response object, but also saves it'''
 
     '''Before finishing, check if there are issues'''
     errorCheck(self, firstUrl)
 
+    '''get information crucial for accessing advanced features'''
+    # TODO FIX THIS CRAP
     getCbLogin(self)
 
 
@@ -36,7 +42,8 @@ def initCookies(self) -> None:
     """Connect to the www.collegeboard.org website and get the cookies in the request session"""
     self.requestSession.get("https://www.collegeboard.org", headers=self.login['defaultHeaders'])
     '''Get initial cookies'''
-
+    self.requestSession.get('https://account.collegeboard.org/login/login?DURL=https://apclassroom.collegeboard.org',
+                            headers=self.login['defaultHeaders'])
     return
 
 
@@ -45,10 +52,32 @@ def introspect(self) -> None:
 
     headers = self.login['defaultHeaders']
     headers["Content-Type"] = "application/json"
-    headers["p3p"] = "CP=\"HONK\""
-    session.post('https://prod.idp.collegeboard.org/api/v1/authn/introspect',
-                        headers=headers,
-                        data=dumps({"stateToken": self.login['stateToken']}))
+    headers["p3p"] = 'CP="HONK"'
+    self.login['introspectRequest']: Response = session.post(
+        'https://prod.idp.collegeboard.org/api/v1/authn/introspect',
+        headers=headers,
+        data=dumps({"stateToken": self.login['stateToken']}))
+
+    self.login['introspect']: dict = self.login['introspectRequest'].json()
+    if not self.login['clientId']:
+        self.login['clientId']: str = self.login['introspect']["_embedded"]["target"]['clientId']
+
+    self.login['exchangeTokenJson']: dict = self.login['introspect']["_embedded"]['authentication']['request']
+
+    self.login['firstExchangeUrl']: str = self.login['exchangeTokenJson']['redirect_uri']
+
+    for key, value in self.login['exchangeTokenJson'].items():
+        if key == 'redirect_uri':
+            continue
+        self.login['firstExchangeUrl'] += f'?{unquote(key)}={unquote(value)}'
+
+    x = session.get(self.login['firstExchangeUrl'], headers=headers,
+                    allow_redirects=False)
+    try:
+        self.login['clientId']: str = x.json()['introspect']["_embedded"]["target"]['clientId']
+    except JSONDecodeError:
+        pass
+
     return
 
 
@@ -72,6 +101,14 @@ def getClientId(self, url) -> tuple[Response, str]:
 
 
 def getStateToken(self) -> str:
+    """Get the state token and set it as a cookie. Required as a login token.
+
+    This is done by using the client ID, accessed earlier, and a nonce, accessed via the getLoginNonce function.
+
+    Args:
+        self (APClassroom): The main API object
+    """
+
     nonce: str = getLoginNonce(self)
     '''Get a nonce, needed for a link below'''
 
@@ -95,15 +132,39 @@ def getStateToken(self) -> str:
     self.login['stateToken']: str = self.login['oktaData']['signIn']['consent']["stateToken"]
     '''get okta login state token from oktaData'''
 
+    '''Set state token in cookies'''
+    self.requestSession.cookies.set('oktaStateToken', self.login['stateToken'])
+
     return self.login['stateToken']
 
 
 def getLoginNonce(self) -> str:
-    return self.requestSession.post("https://prod.idp.collegeboard.org/api/v1/internal/device/nonce",
-                                    headers=self.login['defaultHeaders']).json()['nonce']
+    """Get the nonce from the api/internal/device/nonce endpoint.
+
+    This is needed for the state token, which is widely used as a login token.
+
+    Args:
+        self (APClassroom): The main API object
+    """
+    if not self.login['nonce']:
+        self.login['nonceRequest']: Response = self.requestSession.post(
+            "https://prod.idp.collegeboard.org/api/v1/internal/device/nonce",
+            headers=self.login['defaultHeaders'])
+        self.login['nonce']: str = self.login['nonceRequest'].json()['nonce']
+    return self.login['nonce']
 
 
 def updateLogin(self, __firstUrl: str = None) -> None:
+    """
+    Re-authenticate the user.
+
+    I am unaware if this will actually work.
+
+    Args:
+        self (APClassroom): The main API object
+        __firstUrl (str): The URL of the login page. Defaults to None, causing a request to
+         https://prod.idp.collegeboard.org/api/v1/authn/factors/password/verify?rememberDevice=false
+    """
     if __firstUrl:
         login(self, __firstUrl)
         return
@@ -134,6 +195,12 @@ def getFirstLoginPage(self, url) -> Response:
 
 
 def makeLoginRequest(self) -> Response:
+    """Contact the AuthN endpoint to Authenticate the State Token
+
+    Args:
+        self (APClassroom): The main API object
+    """
+    print(self.requestSession.cookies.keys())
     self.login['payload']: str = dumps({"password": self.login['pass'],
                                         "username": self.login['user'],
                                         "options": {"warnBeforePasswordExpired": 'false',
@@ -143,6 +210,7 @@ def makeLoginRequest(self) -> Response:
 
     headers = self.login['defaultHeaders']
     headers["Content-Type"] = "application/json"
+    headers["host"] = None
     self.login['request'] = self.requestSession.post(url=self.login['url'],
                                                      data=self.login['payload'],
                                                      headers=headers)
@@ -151,6 +219,13 @@ def makeLoginRequest(self) -> Response:
 
 
 def errorCheck(self, firstUrl) -> None:
+    """Check for errors in the login process after the request to the AuthN endpoint.
+
+    Args:
+        self (APClassroom): The main API object
+        firstUrl (str): The URL of the login page.
+            Needed to retry the login process, as the E0000011 error occurs every so often.
+    """
     if self.login['request'].status_code != 200:
         # print(self.login['request'].content.decode('utf-8'))
         try:
@@ -160,19 +235,26 @@ def errorCheck(self, firstUrl) -> None:
                                  f'{self.login["request"].content}')
         if "E0000011" in self.login['requestJson']["errorCode"]:
             '''invalid token error. seems random. Best fix is to try again, even though I hate recursive functions'''
-            login(self, firstUrl)
-        elif 401 == self.loginRequest.status_code:
+            finishLogin(self, firstUrl)
+        elif 401 == self.login['request'].status_code:
             raise InvalidCredentials(f'Invalid username or password\n'
-                                     f'Error code: {self.__loginRequest["errorCode"]}\n'
-                                     f'Error description: {self.__loginRequest["errorSummary"]}'
+                                     f'Error code: {self.login["request"].json()["errorCode"]}\n'
+                                     f'Error description: {self.login["request"].json()["errorSummary"]}'
                                      )
         else:
-            raise LoginException(f'Error code: {self.__loginRequest["errorCode"]}\n'
-                                 f'Error description: {self.__loginRequest["errorSummary"]}')
+            raise LoginException(f'Error code: {self.login["request"].json()["errorCode"]}\n'
+                                 f'Error description: {self.login["request"].json()["errorSummary"]}')
 
 
-def getCbLogin(self, maxTries: int = 2) -> None:
-    """Grabs the CbLogin token and adds it to the login dictionary"""
+def getCbLogin(self, maxTries: int = 1) -> None:
+    """Grabs the CbLogin token and adds it to the login dictionary
+
+    Currently does not work.
+
+    Args:
+        self (APClassroom): The main API object
+        maxTries (int, optional): The maximum number of times to try the StepUp function. Defaults to 1.
+    """
     session: Session = self.requestSession
 
     stepUp(self, session, maxTries)
@@ -209,7 +291,8 @@ def stepUp(self, session: Session, maxTries: int = 1) -> None:
     """
 
     '''Set this cookie, normally set via js, I am unsure if it is needed'''
-    session.cookies.set('oktaStateToken', self.login['stateToken'])
+    '''oktaStateToken!=stateToken'''
+    # session.cookies.set('oktaStateToken', self.login['stateToken'])
 
     """Connect to the stepup site in order to get the link that gets the CBlogin"""
     tries: int = 0
@@ -279,9 +362,12 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
                                                                 allow_redirects=False)
 
     if not self.login['tokenExchangeRequest'].is_redirect:
-        print(session.cookies.keys())
-        print(self.login['tokenExchangeRequest'].headers)
-        raise LoginException('Token exchange request did not return a redirect. Ensure that the URL is correct')
+        try:
+            finishLogin(self)
+        except LoginException:
+            print(session.cookies.keys())
+            print(self.login['tokenExchangeRequest'].headers)
+            raise LoginException('Token exchange request did not return a redirect. Ensure that the URL is correct')
 
     print(self.login['tokenExchangeRequest'].headers['Location'])
 
@@ -322,13 +408,17 @@ https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken={stateToken}
               "name": "t",
               "name": "DT",
               "name": "oktaStateToken",
-              "name": "bm_sv",
+              "name": "bm_sv"
 
 We get that link from the authn link used to initially log in
+    Authn needs these additional cookies:
+              "name": "oktaStateToken",
 
 Try going to this one before that
 
 https://prod.idp.collegeboard.org/api/v1/authn/introspect
+
+"{"stateToken":"0093WmQxrDB-XUJTnIHAOyRI4SqRb1RFG_cPArH0t1","type":"SESSION_STEP_UP","expiresAt":"2022-03-28T13:45:32.000Z","status":"UNAUTHENTICATED","_embedded":{"target":{"type":"APP","name":"oidc_client","label":"paLoginCloud - Default","clientId":"0oa3koxakyZGbffcq5d7","_links":{}},"authentication":{"protocol":"OAUTH2.0","request":{"scope":"openid email profile","response_type":"code","state":"cbAppDurl","redirect_uri":"https://account.collegeboard.org/login/exchangeToken","response_mode":"query"},"issuer":{"id":"aus3koy55cz6p83gt5d7","name":"cb-custom-auth-server","uri":"https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7"},"client":{"id":"0oa3koxakyZGbffcq5d7","name":"paLoginCloud - Default","_links":{}}}},"_links":{"next":{"name":"authenticate","href":"https://prod.idp.collegeboard.org/api/v1/authn","hints":{"allow":["POST"]}},"cancel":{"href":"https://prod.idp.collegeboard.org/api/v1/authn/cancel","hints":{"allow":["POST"]}}}}"
 
 
 '''

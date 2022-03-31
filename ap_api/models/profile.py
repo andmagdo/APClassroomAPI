@@ -49,16 +49,18 @@ class profile:
         if self.__stepUp.status_code != 302:
             self.user.loginUpdate()
             self.__stepUpUrl: str = self.rawUserData['_links']['next']['href']
-            self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl, headers=self.user.login['defaultHeaders'])
+            self.__stepUp: Response = self.requestSession.head(self.__stepUpUrl,
+                                                               headers=self.user.login['defaultHeaders'])
 
         self.__newUrl: str = self.__stepUp.headers['Location']
 
-        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False, headers=self.user.login['defaultHeaders'])
+        self.__newUrlOut: Response = self.requestSession.get(self.__newUrl, allow_redirects=False,
+                                                             headers=self.user.login['defaultHeaders'])
 
         # TODO add cookies that are needed for the next request to session
         self.requestSession.cookies.set("oktaStateToken", self.user.login['stateToken'])
 
-        #print(self.requestSession.cookies)
+        # print(self.requestSession.cookies)
 
         self.__profileAuth: str = self.__newUrlOut.cookies.get('cb_login')
         # still nothin'
