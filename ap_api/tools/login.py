@@ -297,20 +297,20 @@ def stepUp(self, session: Session, maxTries: int = 1) -> None:
     """Connect to the stepup site in order to get the link that gets the CBlogin"""
     tries: int = 0
     self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
-    stepUp: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
-                                    allow_redirects=False)
+    stepUpRequest: Response = session.head(self.login['stepUpUrl'], headers=self.login['defaultHeaders'],
+                                           allow_redirects=False)
     tries += 1
-    while stepUp.status_code != 302:
+    while stepUpRequest.status_code != 302:
         if tries >= maxTries:
             raise LoginException('Maximum number of attempts reached. Check credentials and ensure you are using '
                                  'correct URLs')
         updateLogin(self)
         self.login['stepUpUrl']: str = self.login['request'].json()['_links']['next']['href']
-        stepUp: Response = self.requestSession.head(self.__stepUpUrl, headers=self.login['defaultHeaders'])
+        stepUpRequest: Response = self.requestSession.head(self.__stepUpUrl, headers=self.login['defaultHeaders'])
         tries += 1
 
     try:
-        self.login['tokenExchangeUrl']: str = stepUp.headers['Location']
+        self.login['tokenExchangeUrl']: str = stepUpRequest.headers['Location']
     except KeyError:
         raise LoginException('KeyError while trying to recieve token exchange url. Check credentials and ensure '
                              'that you are using correct URLs\n'
@@ -418,7 +418,16 @@ Try going to this one before that
 
 https://prod.idp.collegeboard.org/api/v1/authn/introspect
 
-"{"stateToken":"0093WmQxrDB-XUJTnIHAOyRI4SqRb1RFG_cPArH0t1","type":"SESSION_STEP_UP","expiresAt":"2022-03-28T13:45:32.000Z","status":"UNAUTHENTICATED","_embedded":{"target":{"type":"APP","name":"oidc_client","label":"paLoginCloud - Default","clientId":"0oa3koxakyZGbffcq5d7","_links":{}},"authentication":{"protocol":"OAUTH2.0","request":{"scope":"openid email profile","response_type":"code","state":"cbAppDurl","redirect_uri":"https://account.collegeboard.org/login/exchangeToken","response_mode":"query"},"issuer":{"id":"aus3koy55cz6p83gt5d7","name":"cb-custom-auth-server","uri":"https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7"},"client":{"id":"0oa3koxakyZGbffcq5d7","name":"paLoginCloud - Default","_links":{}}}},"_links":{"next":{"name":"authenticate","href":"https://prod.idp.collegeboard.org/api/v1/authn","hints":{"allow":["POST"]}},"cancel":{"href":"https://prod.idp.collegeboard.org/api/v1/authn/cancel","hints":{"allow":["POST"]}}}}"
+"{"stateToken":"0093WmQxrDB-XUJTnIHAOyRI4SqRb1RFG_cPArH0t1","type":"SESSION_STEP_UP",
+"expiresAt":"2022-03-28T13:45:32.000Z","status":"UNAUTHENTICATED","_embedded":{"target":{"type":"APP",
+"name":"oidc_client","label":"paLoginCloud - Default","clientId":"0oa3koxakyZGbffcq5d7","_links":{}},
+"authentication":{"protocol":"OAUTH2.0","request":{"scope":"openid email profile","response_type":"code",
+"state":"cbAppDurl","redirect_uri":"https://account.collegeboard.org/login/exchangeToken","response_mode":"query"},
+"issuer":{"id":"aus3koy55cz6p83gt5d7","name":"cb-custom-auth-server",
+"uri":"https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7"},"client":{"id":"0oa3koxakyZGbffcq5d7",
+"name":"paLoginCloud - Default","_links":{}}}},"_links":{"next":{"name":"authenticate",
+"href":"https://prod.idp.collegeboard.org/api/v1/authn","hints":{"allow":["POST"]}},"cancel":{
+"href":"https://prod.idp.collegeboard.org/api/v1/authn/cancel","hints":{"allow":["POST"]}}}}"
 
 
 '''
