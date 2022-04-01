@@ -1,12 +1,12 @@
 import requests
 
-from .errors import LoginException
+from .errors import LoginException, RateLimitException
 from .models.profile import profile
-from .tools import login, updateLogin
+from .tools import login, updateLogin, getUserAgent
 
 
 class APClassroom:
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str, bypassRate: bool=True) -> None:
         self.requestSession = requests.Session()
         '''use a request session to keep the same connection open and deal with cookies'''
 
@@ -22,10 +22,7 @@ class APClassroom:
         self.login['url']: str = "https://prod.idp.collegeboard.org/api/v1/authn"
         '''URL for logging in'''
         self.login['nonce'] = None
-        try:
-            login(self)
-        except KeyError:
-            raise LoginException(f"Key error in login \n")
+        self.attemptLogin(bypassRate)
         '''Will make the cookies, used to authenticate'''
 
     def loginUpdate(self, __firstUrl: str = None) -> None:
@@ -47,9 +44,18 @@ class APClassroom:
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/99.0.4844.74 Safari/537.36',
-            "DNT": "1",
+            'User-Agent': getUserAgent(),
             "Upgrade-Insecure-Requests": "1",
 
         }
+    def attemptLogin(self, bypassRate) -> None:
+        try:
+            login(self)
+        except KeyError:
+            raise LoginException(f"Key error in login \n")
+        except RateLimitException as e:
+            if bypassRate:
+                self.__initLoginDict()
+                self.attemptLogin(self)
+            else:
+                raise RateLimitException(e)

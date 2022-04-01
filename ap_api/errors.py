@@ -32,3 +32,8 @@ class LockedOut(LoginException):
     """
     Exception for when the account is locked out.
     """
+
+class RateLimitException(Exception):
+    """
+    Exception for when the rate limit is reached.
+    """

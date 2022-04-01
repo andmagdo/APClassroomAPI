@@ -1,9 +1,9 @@
-from json import loads, dumps, JSONDecodeError
+from json import loads, dumps
 from urllib.parse import unquote
-
+from simplejson import JSONDecodeError
 from requests import Session, Response
 
-from ..errors import LoginException, InvalidCredentials
+from ..errors import LoginException, InvalidCredentials, RateLimitException
 
 
 def login(self, firstUrl: str = None) -> None:
@@ -20,7 +20,7 @@ def login(self, firstUrl: str = None) -> None:
     getStateToken(self)
     '''This does return a string with the info, but also already saves the information to the main login dictionary'''
 
-    introspect(self)
+    # introspect(self)
     '''I do not know if this is required, but it could be, so I think it should be here'''
 
     finishLogin(self, firstUrl)
@@ -35,7 +35,7 @@ def finishLogin(self, firstUrl: str = None) -> None:
 
     '''get information crucial for accessing advanced features'''
     # TODO FIX THIS CRAP
-    getCbLogin(self)
+    # getCbLogin(self)
 
 
 def initCookies(self) -> None:
@@ -61,10 +61,10 @@ def introspect(self) -> None:
     self.login['introspect']: dict = self.login['introspectRequest'].json()
     if not self.login['clientId']:
         self.login['clientId']: str = self.login['introspect']["_embedded"]["target"]['clientId']
-
-    self.login['exchangeTokenJson']: dict = self.login['introspect']["_embedded"]['authentication']['request']
-
-    self.login['firstExchangeUrl']: str = self.login['exchangeTokenJson']['redirect_uri']
+    if not self.login['exchangeTokenJson']:
+        self.login['exchangeTokenJson']: dict = self.login['introspect']["_embedded"]['authentication']['request']
+    if not self.login['firstExchangeUrl']:
+        self.login['firstExchangeUrl']: str = self.login['exchangeTokenJson']['redirect_uri']
 
     for key, value in self.login['exchangeTokenJson'].items():
         if key == 'redirect_uri':
@@ -200,7 +200,7 @@ def makeLoginRequest(self) -> Response:
     Args:
         self (APClassroom): The main API object
     """
-    print(self.requestSession.cookies.keys())
+    # print(self.requestSession.cookies.keys())
     self.login['payload']: str = dumps({"password": self.login['pass'],
                                         "username": self.login['user'],
                                         "options": {"warnBeforePasswordExpired": 'false',
@@ -241,6 +241,12 @@ def errorCheck(self, firstUrl) -> None:
                                      f'Error code: {self.login["request"].json()["errorCode"]}\n'
                                      f'Error description: {self.login["request"].json()["errorSummary"]}'
                                      )
+        elif self.login["request"].json()["errorCode"] == 'E0000047':
+            raise RateLimitException(f'Rate limit exceeded. Try again in a few minutes.\n'
+                                     f'Error code: {self.login["request"].json()["errorCode"]}\n'
+                                     f'Error description: {self.login["request"].json()["errorSummary"]}'
+                                     )
+
         else:
             raise LoginException(f'Error code: {self.login["request"].json()["errorCode"]}\n'
                                  f'Error description: {self.login["request"].json()["errorSummary"]}')
@@ -355,7 +361,7 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
 
     # tryThis(self, session, headers, self.login['tokenExchangeUrl'])
 
-    print('"' + self.login['tokenExchangeUrl'] + '"')
+    # print('"' + self.login['tokenExchangeUrl'] + '"')
 
     self.login['tokenExchangeRequest']: Response = session.head(self.login['tokenExchangeUrl'],
                                                                 headers=headers,
