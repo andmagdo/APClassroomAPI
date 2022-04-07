@@ -33,6 +33,8 @@ def finishLogin(self, firstUrl: str = None) -> None:
     '''Before finishing, check if there are issues'''
     errorCheck(self, firstUrl)
 
+    # followExample(self)
+
     '''get information crucial for accessing advanced features'''
     # TODO FIX THIS CRAP
     # getCbLogin(self)
@@ -201,21 +203,39 @@ def makeLoginRequest(self) -> Response:
         self (APClassroom): The main API object
     """
     # print(self.requestSession.cookies.keys())
+
+    '''JSON payload for logging in'''
+    #{'stateToken': '003eltqGY5M0rvModd0mYqbyT7LnWy05iFUuk61VfF', 'type': 'SESSION_STEP_UP', 'expiresAt': '2022-04-05T12:40:59.000Z', 'status': 'SUCCESS', '_embedded': {'user': {'id': '00u3zy5tlttMeiQG55d7', 'passwordChanged': '2022-02-28T00:55:13.000Z', 'profile': {'login': 'andmagdo@privacyrequired.com', 'firstName': 'Amelia', 'lastName': 'Magdovitz', 'locale': 'en_US', 'timeZone': 'America/Los_Angeles'}}, 'target': {'type': 'APP', 'name': 'oidc_client', 'label': 'paLoginCloud - Default', 'clientId': '0oa3koxakyZGbffcq5d7', '_links': {}}, 'authentication': {'protocol': 'OAUTH2.0', 'request': {'scope': 'openid email profile', 'response_type': 'code', 'state': 'cbAppDurl', 'redirect_uri': 'https://account.collegeboard.org/login/exchangeToken', 'response_mode': 'query'}, 'issuer': {'id': 'aus3koy55cz6p83gt5d7', 'name': 'cb-custom-auth-server', 'uri': 'https://prod.idp.collegeboard.org/oauth2/aus3koy55cz6p83gt5d7'}, 'client': {'id': '0oa3koxakyZGbffcq5d7', 'name': 'paLoginCloud - Default', '_links': {}}}}, '_links': {'next': {'name': 'original', 'href': 'https://prod.idp.collegeboard.org/login/step-up/redirect?stateToken=003eltqGY5M0rvModd0mYqbyT7LnWy05iFUuk61VfF', 'hints': {'allow': ['GET']}}, 'cancel': {'href': 'https://prod.idp.collegeboard.org/api/v1/authn/cancel', 'hints': {'allow': ['POST']}}}}
+    #{'expiresAt': '2022-04-05T12:41:48.000Z', 'status': 'SUCCESS', 'sessionToken': '20111zSjE3D0qkcs5AFmnMSW2uYS_x1LLwyXe9nMIqiTMeX01KTaX2X', '_embedded': {'user': {'id': '00u3zy5tlttMeiQG55d7', 'passwordChanged': '2022-02-28T00:55:13.000Z', 'profile': {'login': 'andmagdo@privacyrequired.com', 'firstName': 'Amelia', 'lastName': 'Magdovitz', 'locale': 'en_US', 'timeZone': 'America/Los_Angeles'}}}, '_links': {'cancel': {'href': 'https://prod.idp.collegeboard.org/api/v1/authn/cancel', 'hints': {'allow': ['POST']}}}}
+
+    headers: dict = self.login['defaultHeaders']
+    headers["Content-Type"] = "application/json"
+    headers["host"] = None
+
+    normalLogin(self, headers)
+    # altLogin(self, headers)
+    return self.login['request']
+
+def normalLogin(self, headers) -> Response:
     self.login['payload']: str = dumps({"password": self.login['pass'],
                                         "username": self.login['user'],
                                         "options": {"warnBeforePasswordExpired": 'false',
                                                     "multiOptionalFactorEnroll": 'false'},
-                                        "stateToken": self.login['stateToken']})
-    '''JSON payload for logging in'''
-
-    headers = self.login['defaultHeaders']
-    headers["Content-Type"] = "application/json"
-    headers["host"] = None
+                                        "stateToken": self.login['stateToken']
+                                        })
     self.login['request'] = self.requestSession.post(url=self.login['url'],
                                                      data=self.login['payload'],
                                                      headers=headers)
+    return self.login['request']
 
-    return Response
+def altLogin(self, headers) -> Response:
+    self.login['altPayload']: str = dumps({"password": self.login['pass'],
+                                        "username": self.login['user']
+                                        })
+    self.login['altRequest'] = self.requestSession.post(url=self.login['url'],
+                                                     data=self.login['altPayload'],
+                                                     headers=headers)
+    return self.login['altRequest']
 
 
 def errorCheck(self, firstUrl) -> None:
@@ -382,6 +402,12 @@ def tokenExchange(self, session: Session, headers: dict) -> None:
     print(session.cookies.keys())
 
     print(self.login['tokenExchangeRequest'].request.headers)
+
+
+def followExample(self) -> None:
+    session: Session = self.requestSession
+    print(session.post('https://prod.idp.collegeboard.org/api/v1/sessions',
+                       data=dumps({"sessionToken": "20111DBaRCoqwzhe39n7DlBfXibh3U0-IBdt002yyYfqK0m0tDQaFaY"})))
 
 
 # def tryThis(self, session: Session, headers:dict, url:str):
